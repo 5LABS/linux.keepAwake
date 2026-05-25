@@ -1,0 +1,24 @@
+[package]
+name = "keep-awake"
+version = "0.1.0"
+edition = "2021"
+description = "Minimalistic tray tool to keep the system/screen awake on Linux"
+
+[[bin]]
+name = "keep-awake"
+path = "src/main.rs"
+
+[dependencies]
+ksni = "0.3"
+zbus = { version = "5", default-features = false, features = ["tokio"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "sync", "signal"] }
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+dirs = "6"
+
+[profile.release]
+opt-level = "z"
+lto = true
+strip = true
+panic = "abort"
+codegen-units = 1

@@ -1,0 +1,15 @@
+# Rust / Cargo
+/target/
+
+# Konfiguration und Nutzerdaten (werden zur Laufzeit in ~/.config erzeugt)
+*.toml.local
+
+# Betriebssystem
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
