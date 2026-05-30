@@ -2,6 +2,7 @@ use ksni::menu::{CheckmarkItem, MenuItem, StandardItem, SubMenu};
 use ksni::{Icon, Status, ToolTip, Tray};
 use tokio::sync::mpsc::UnboundedSender;
 
+use crate::config::SavedMode;
 use crate::icon;
 
 /// The selected operating mode. Timer presets are durations in seconds.
@@ -40,13 +41,39 @@ pub struct AwakeTray {
     pub tx: UnboundedSender<Cmd>,
 }
 
+impl From<Mode> for SavedMode {
+    fn from(m: Mode) -> Self {
+        match m {
+            Mode::Off => SavedMode::Off,
+            Mode::Indefinite => SavedMode::Indefinite,
+            Mode::Timed { secs } => SavedMode::Timed { secs },
+        }
+    }
+}
+
+impl From<SavedMode> for Mode {
+    fn from(m: SavedMode) -> Self {
+        match m {
+            SavedMode::Off => Mode::Off,
+            SavedMode::Indefinite => Mode::Indefinite,
+            SavedMode::Timed { secs } => Mode::Timed { secs },
+        }
+    }
+}
+
 impl AwakeTray {
-    pub fn new(keep_screen_on: bool, autostart: bool, tx: UnboundedSender<Cmd>) -> Self {
+    pub fn new(
+        keep_screen_on: bool,
+        mode: Mode,
+        autostart: bool,
+        status_text: String,
+        tx: UnboundedSender<Cmd>,
+    ) -> Self {
         Self {
-            mode: Mode::Off,
+            mode,
             keep_screen_on,
             autostart,
-            status_text: "Aus".to_owned(),
+            status_text,
             tx,
         }
     }

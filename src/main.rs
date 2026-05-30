@@ -12,6 +12,8 @@ use tokio::time::{sleep_until, Duration, Instant};
 use inhibit::InhibitManager;
 use tray::{AwakeTray, Cmd, Mode, TIMER_PRESETS};
 
+use config::SavedMode;
+
 fn status_text(mode: Mode, keep_screen_on: bool) -> String {
     let base = match mode {
         Mode::Off => return "Aus".to_owned(),
@@ -36,16 +38,36 @@ fn status_text(mode: Mode, keep_screen_on: bool) -> String {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cfg = config::load();
     let autostart = config::autostart_enabled();
+    let initial_mode = Mode::from(cfg.mode);
 
-    let mut inhibitor = InhibitManager::new().await?;
+    let mut inhibitor = {
+        let mut attempts = 0u32;
+        loop {
+            match InhibitManager::new().await {
+                Ok(m) => break m,
+                Err(e) if attempts < 10 => {
+                    eprintln!("keep-awake: D-Bus not ready ({e}), retrying…");
+                    tokio::time::sleep(Duration::from_secs(1)).await;
+                    attempts += 1;
+                }
+                Err(e) => return Err(e.into()),
+            }
+        }
+    };
 
+    let awake = initial_mode.is_awake();
+    inhibitor.set(awake, awake && cfg.keep_screen_on).await;
+
+    let mut deadline: Option<Instant> = match initial_mode {
+        Mode::Timed { secs } => Some(Instant::now() + Duration::from_secs(secs)),
+        _ => None,
+    };
+
+    let initial_status = status_text(initial_mode, cfg.keep_screen_on);
     let (tx, mut rx) = mpsc::unbounded_channel::<Cmd>();
-    let handle = AwakeTray::new(cfg.keep_screen_on, autostart, tx)
+    let handle = AwakeTray::new(cfg.keep_screen_on, initial_mode, autostart, initial_status, tx)
         .spawn()
         .await?;
-
-    // Deadline for the active timer, if any.
-    let mut deadline: Option<Instant> = None;
 
     loop {
         let timer = async {
@@ -66,7 +88,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         _ => None,
                     };
 
-                    config::save(&config::Config { keep_screen_on });
+                    config::save(&config::Config { keep_screen_on, mode: SavedMode::from(mode) });
 
                     let text = status_text(mode, keep_screen_on);
                     handle.update(|t| t.status_text = text).await;

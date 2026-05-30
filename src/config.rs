@@ -2,10 +2,21 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum SavedMode {
+    #[default]
+    Off,
+    Indefinite,
+    Timed { secs: u64 },
+}
+
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Config {
     #[serde(default)]
     pub keep_screen_on: bool,
+    #[serde(default)]
+    pub mode: SavedMode,
 }
 
 fn config_file() -> Option<PathBuf> {
@@ -60,7 +71,8 @@ pub fn set_autostart(enabled: bool) {
              Icon=keep-awake\n\
              Terminal=false\n\
              Categories=Utility;\n\
-             X-GNOME-Autostart-enabled=true\n"
+             X-GNOME-Autostart-enabled=true\n\
+             X-GNOME-Autostart-Delay=3\n"
         );
         if let Some(dir) = path.parent() {
             let _ = std::fs::create_dir_all(dir);

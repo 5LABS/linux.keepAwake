@@ -28,6 +28,7 @@ Icon=keep-awake
 Terminal=false
 Categories=Utility;
 X-GNOME-Autostart-enabled=true
+X-GNOME-Autostart-Delay=3
 EOF
 }
 
