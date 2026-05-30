@@ -65,9 +65,29 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let initial_status = status_text(initial_mode, cfg.keep_screen_on);
     let (tx, mut rx) = mpsc::unbounded_channel::<Cmd>();
-    let handle = AwakeTray::new(cfg.keep_screen_on, initial_mode, autostart, initial_status, tx)
-        .spawn()
-        .await?;
+    let handle = {
+        let mut attempts = 0u32;
+        loop {
+            match AwakeTray::new(
+                cfg.keep_screen_on,
+                initial_mode,
+                autostart,
+                initial_status.clone(),
+                tx.clone(),
+            )
+            .spawn()
+            .await
+            {
+                Ok(h) => break h,
+                Err(e) if attempts < 10 => {
+                    eprintln!("keep-awake: tray not ready ({e}), retrying…");
+                    tokio::time::sleep(Duration::from_secs(1)).await;
+                    attempts += 1;
+                }
+                Err(e) => return Err(e.into()),
+            }
+        }
+    };
 
     loop {
         let timer = async {
